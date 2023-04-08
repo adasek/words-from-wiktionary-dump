@@ -4,6 +4,7 @@ from lxml import etree
 import re
 import bz2
 import time
+from wikitextparser import remove_markup, parse
 
 from . import WikiPage
 
@@ -14,10 +15,30 @@ class WikiDumpAnalyzer:
         self.dump_filename = 'dumps/cswiktionary-20230401-pages-meta-current.xml.bz2'
 
     def analyze(self):
-        total_pages = self.count_pages()
-        start = time.perf_counter()
+        def is_czech_subst_template_name(template_name):
+            template_name_normalized = template_name.strip().lower()
+            return template_name_normalized.startswith('substantivum') and '(cs)' in template_name_normalized
+
+        def valid(word):
+             return " " not in word and "/" not in word and "-" not in word
+
+
         for i, page in enumerate(self.extract_pages()):
-            print(page)
+            parsed = parse(page.wikitext)
+            # contains a subst section?
+            all_templates = [template for section in parsed.sections for template in section.templates]
+            substantive_templates = [template for template in all_templates if is_czech_subst_template_name(template.name)]
+            for templ in substantive_templates:
+                for arg in templ.arguments:
+                    word_form = remove_markup(arg.value.strip())
+                    # purkmistrovi<br />purkmistru
+                    if "<br />" in word_form:
+                        words = [w for w in word_form.split("<br />") if valid(w)]
+                    else:
+                        words = [w for w in word_form.split("/") if valid(w)]
+                    for word in words:
+                        print(word)
+                    # e.g. manželové / manželé Tvar manželé je pouze pro význam (2); jinak jsou možné koncovky podle vzorů pán i muž bez významového rozlišení.
 
     @staticmethod
     def _get_namespace(tag):
