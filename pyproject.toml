@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "words-from-wiktionary-dump"
+version = "0.1.0"
+description = ""
+authors = ["Adam Benda <adam@adasek.cz>"]
+readme = "README.md"
+packages = [{include = "wiki"}, {include = "objects"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+lxml = "^4.9.2"
+wikitextparser = "^0.51.1"
+rdflib = "^6.3.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
