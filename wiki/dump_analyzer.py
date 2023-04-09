@@ -15,17 +15,16 @@ class WikiDumpAnalyzer:
         self.dump_filename = 'dumps/cswiktionary-20230401-pages-meta-current.xml.bz2'
 
     def analyze(self):
-        def is_czech_subst_template_name(template_name):
-            template_name_normalized = template_name.strip().lower()
-            return template_name_normalized.startswith('substantivum') and '(cs)' in template_name_normalized
+        template_types = {
+            "substantivum (cs)": 1,
+            "adjektivum (cs)": 2,
+            "číslovka adj (cs)": 2,
+            "zájmeno adj (cs)": 2,
+            "zájmeno (cs)": 3,
+            "číslovka (cs)": 4,
+            "sloveso (cs)": 5,
+        }
 
-        def is_czech_verb_template_name(template_name):
-            template_name_normalized = template_name.strip().lower()
-            return template_name_normalized.startswith('sloveso') and '(cs)' in template_name_normalized
-
-        def is_czech_adj_template_name(template_name):
-            template_name_normalized = template_name.strip().lower()
-            return template_name_normalized.startswith('adjektivum') and '(cs)' in template_name_normalized
 
         def valid(word):
              return " " not in word and "/" not in word and "-" not in word
@@ -114,40 +113,23 @@ class WikiDumpAnalyzer:
                 # Does not work
                 # nested_section_templates = [template for ancestor in section.ancestors() for template in ancestor.templates]
                 all_templates = [template for template in section.templates]
-                substantive_templates = [template for template in all_templates if is_czech_subst_template_name(template.name)]
-                for templ in substantive_templates:
-                    for arg in templ.arguments:
-                        if arg.value.strip().startswith('nesklonné') and arg.name == "1":
-                            words = [page.article_title]
-                        else:
-                            word_form = remove_markup(arg.value.strip())
-                            if "<br />" in word_form:
-                                words = [w for w in word_form.split("<br />") if valid(w)]
+
+                def is_template(template, template_name):
+                        template_name_normalized = template.name.strip().lower()
+                        return template_name_normalized == template_name.strip().lower()
+
+                for template_name, word_type in template_types.items():
+                    templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
+                    for templ in templates_of_given_type:
+                        for arg in templ.arguments:
+                            if arg.value.strip().startswith('nesklonné') and arg.name == "1":
+                                words = [page.article_title]
                             else:
+                                word_form = remove_markup(arg.value.strip())
                                 words = [w for w in word_form.split("/") if valid(w)]
-                        for word in words:
-                            pass
-                            # print(word)
-                        # e.g. manželové / manželé Tvar manželé je pouze pro význam (2); jinak jsou možné koncovky podle vzorů pán i muž bez významového rozlišení.
+                            for word in words:
+                                print(word)
 
-                # Verbs
-                verb_templates = [template for template in all_templates if is_czech_verb_template_name(template.name)]
-                for templ in verb_templates:
-                    for arg in templ.arguments:
-                        word_form = remove_markup(arg.value.strip())
-                        words = [w for w in word_form.split("/") if valid(w)]
-                        for word in words:
-                            pass
-                            # print(word)
-
-                        # Adjectives
-                adj_templates = [template for template in all_templates if is_czech_adj_template_name(template.name)]
-                for templ in adj_templates:
-                    for arg in templ.arguments:
-                        word_form = remove_markup(arg.value.strip())
-                        words = [w for w in word_form.split("/") if valid(w)]
-                        for word in words:
-                            print(word)
 
 
     @staticmethod
