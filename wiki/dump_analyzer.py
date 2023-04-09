@@ -36,8 +36,6 @@ class WikiDumpAnalyzer:
 
             # Build section tree
             def templates_with_deepest_section(parsed_wikitext):
-                print("--------")
-
                 section_to_children = {}
                 all_sections = parsed_wikitext.get_sections(True)
                 root_section = all_sections[0]
@@ -79,8 +77,8 @@ class WikiDumpAnalyzer:
                         prune(child, level + 1)
                 prune(root_section, 0)
 
-                print("###")
-                echo(root_section, 0)
+                # print("###")
+                # echo(root_section, 0)
 
                 nested_template_section_tuples = []
                 for template in root_section.templates:
@@ -97,9 +95,14 @@ class WikiDumpAnalyzer:
                     #print(deepest_section.title)
                 return nested_template_section_tuples
 
-            for x, y in templates_with_deepest_section(parsed):
-                if y.title is not None:
-                    print(y.title + " " + str(x) )
+            #for x, y in templates_with_deepest_section(parsed):
+                #if y.title is not None:
+                #    # print(y.title + " " + str(x.name.strip()) )
+                #   if x.name.strip().lower() == 'substantivum (cs)':
+                #      # if not y.title.strip().lower().startswith('skloňování'):
+                #           # Fixme!: foyer, achtovanec, atrament, dynchéř, lázeňský
+                #      #    print(page.article_title)
+
             # print([y.title for x, y in templates_with_deepest_section(parsed) if y.title is not None])
             #print()
             # templates_with_deepest_section(parsed)
@@ -132,26 +135,19 @@ class WikiDumpAnalyzer:
                 for templ in verb_templates:
                     for arg in templ.arguments:
                         word_form = remove_markup(arg.value.strip())
-                        if "<br />" in word_form:
-                            words = [w for w in word_form.split("<br />") if valid(w)]
-                        else:
-                            words = [w for w in word_form.split("/") if valid(w)]
+                        words = [w for w in word_form.split("/") if valid(w)]
                         for word in words:
                             pass
                             # print(word)
 
                         # Adjectives
                 adj_templates = [template for template in all_templates if is_czech_adj_template_name(template.name)]
-                for templ in verb_templates:
+                for templ in adj_templates:
                     for arg in templ.arguments:
                         word_form = remove_markup(arg.value.strip())
-                        if "<br />" in word_form:
-                            words = [w for w in word_form.split("<br />") if valid(w)]
-                        else:
-                            words = [w for w in word_form.split("/") if valid(w)]
+                        words = [w for w in word_form.split("/") if valid(w)]
                         for word in words:
-                            pass
-                            # print(word)
+                            print(word)
 
 
     @staticmethod
