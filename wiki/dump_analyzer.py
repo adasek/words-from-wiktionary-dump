@@ -19,6 +19,10 @@ class WikiDumpAnalyzer:
             template_name_normalized = template_name.strip().lower()
             return template_name_normalized.startswith('substantivum') and '(cs)' in template_name_normalized
 
+        def is_czech_verb_template_name(template_name):
+            template_name_normalized = template_name.strip().lower()
+            return template_name_normalized.startswith('sloveso') and '(cs)' in template_name_normalized
+
         def valid(word):
              return " " not in word and "/" not in word and "-" not in word
 
@@ -39,6 +43,19 @@ class WikiDumpAnalyzer:
                     for word in words:
                         print(word)
                     # e.g. manželové / manželé Tvar manželé je pouze pro význam (2); jinak jsou možné koncovky podle vzorů pán i muž bez významového rozlišení.
+
+            # Verbs
+            verb_templates = [template for template in all_templates if is_czech_verb_template_name(template.name)]
+            for templ in verb_templates:
+                for arg in templ.arguments:
+                    word_form = remove_markup(arg.value.strip())
+                    if "<br />" in word_form:
+                        words = [w for w in word_form.split("<br />") if valid(w)]
+                    else:
+                        words = [w for w in word_form.split("/") if valid(w)]
+                    for word in words:
+                        print(word)
+
 
     @staticmethod
     def _get_namespace(tag):
