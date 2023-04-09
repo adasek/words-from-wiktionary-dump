@@ -61,18 +61,35 @@ class WikiDumpAnalyzer:
                 # Traverse the section tree
                 section_to_level = {}
                 def set_level(node, level=0):
-                    section_to_level[node] = level
-                    print("".join(["."] * level) + str(node.title))
+                    if node not in section_to_level or section_to_level[node] < level:
+                        section_to_level[node] = level
+                    # print("".join(["."] * level) + str(node.title))
                     for child in section_to_children[node]:
                         set_level(child, level + 1)
                 set_level(root_section, 0)
+
+                def echo(node, level=0):
+                    print("".join(["."] * level) + str(node.title) + " " + str(section_to_level[node]))
+                    for child in section_to_children[node]:
+                        echo(child, level + 1)
+
+                def prune(node, level=0):
+                    section_to_children[node] = [ch for ch in section_to_children[node] if section_to_level[ch] == level + 1]
+                    for child in section_to_children[node]:
+                        prune(child, level + 1)
+                prune(root_section, 0)
+
+                print("###")
+                echo(root_section, 0)
 
                 nested_template_section_tuples = []
                 for template in root_section.templates:
                     deepest_level = 0
                     deepest_section = root_section
                     for section in all_sections:
-                        if template in template.sections and deepest_level < section_to_level[section]:
+                        # print(str(template) in [str(t) for t in section.templates])
+                        template_in_section = str(template) in [str(t) for t in section.templates]
+                        if section in section_to_level and deepest_level <= section_to_level[section] and template_in_section:
                             deepest_level = section_to_level[section]
                             deepest_section = section
                     nested_template_section_tuples += [[template, deepest_section]]
@@ -82,7 +99,7 @@ class WikiDumpAnalyzer:
 
             for x, y in templates_with_deepest_section(parsed):
                 if y.title is not None:
-                    print(y.title + " template" )
+                    print(y.title + " " + str(x) )
             # print([y.title for x, y in templates_with_deepest_section(parsed) if y.title is not None])
             #print()
             # templates_with_deepest_section(parsed)
