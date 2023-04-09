@@ -23,38 +23,118 @@ class WikiDumpAnalyzer:
             template_name_normalized = template_name.strip().lower()
             return template_name_normalized.startswith('sloveso') and '(cs)' in template_name_normalized
 
+        def is_czech_adj_template_name(template_name):
+            template_name_normalized = template_name.strip().lower()
+            return template_name_normalized.startswith('adjektivum') and '(cs)' in template_name_normalized
+
         def valid(word):
              return " " not in word and "/" not in word and "-" not in word
 
 
         for i, page in enumerate(self.extract_pages()):
             parsed = parse(page.wikitext)
-            # contains a subst section?
-            all_templates = [template for section in parsed.sections for template in section.templates]
-            substantive_templates = [template for template in all_templates if is_czech_subst_template_name(template.name)]
-            for templ in substantive_templates:
-                for arg in templ.arguments:
-                    word_form = remove_markup(arg.value.strip())
-                    # purkmistrovi<br />purkmistru
-                    if "<br />" in word_form:
-                        words = [w for w in word_form.split("<br />") if valid(w)]
-                    else:
-                        words = [w for w in word_form.split("/") if valid(w)]
-                    for word in words:
-                        print(word)
-                    # e.g. manželové / manželé Tvar manželé je pouze pro význam (2); jinak jsou možné koncovky podle vzorů pán i muž bez významového rozlišení.
 
-            # Verbs
-            verb_templates = [template for template in all_templates if is_czech_verb_template_name(template.name)]
-            for templ in verb_templates:
-                for arg in templ.arguments:
-                    word_form = remove_markup(arg.value.strip())
-                    if "<br />" in word_form:
-                        words = [w for w in word_form.split("<br />") if valid(w)]
-                    else:
-                        words = [w for w in word_form.split("/") if valid(w)]
-                    for word in words:
-                        print(word)
+            # Build section tree
+            def templates_with_deepest_section(parsed_wikitext):
+                print("--------")
+
+                section_to_children = {}
+                all_sections = parsed_wikitext.get_sections(True)
+                root_section = all_sections[0]
+                max_children = 0
+                for section in all_sections:
+                    section_to_children[section] = []
+                for section1 in all_sections:
+                    # print(str(section1.title))
+                    for section2 in all_sections:
+                        if section1 in section2 and section2 in section1:
+                            # identical
+                            pass
+                        elif section1 in section2:
+                            # print(str(section2.title) + "->" + str(section1.title))
+                            # <- relation
+                            section_to_children[section2].append(section1)
+                            if len(section_to_children[section2]) > max_children:
+                                max_children = len(section_to_children[section2])
+                                root_section = section2
+
+                # Traverse the section tree
+                section_to_level = {}
+                def set_level(node, level=0):
+                    section_to_level[node] = level
+                    print("".join(["."] * level) + str(node.title))
+                    for child in section_to_children[node]:
+                        set_level(child, level + 1)
+                set_level(root_section, 0)
+
+                nested_template_section_tuples = []
+                for template in root_section.templates:
+                    deepest_level = 0
+                    deepest_section = root_section
+                    for section in all_sections:
+                        if template in template.sections and deepest_level < section_to_level[section]:
+                            deepest_level = section_to_level[section]
+                            deepest_section = section
+                    nested_template_section_tuples += [[template, deepest_section]]
+                    #print(template)
+                    #print(deepest_section.title)
+                return nested_template_section_tuples
+
+            for x, y in templates_with_deepest_section(parsed):
+                if y.title is not None:
+                    print(y.title + " template" )
+            # print([y.title for x, y in templates_with_deepest_section(parsed) if y.title is not None])
+            #print()
+            # templates_with_deepest_section(parsed)
+            # Section-Template
+            # relationship is important to parse the proper Meaning of the word
+
+            for section in parsed.sections:
+                # Flatten = https://stackoverflow.com/a/952952
+                # Does not work
+                # nested_section_templates = [template for ancestor in section.ancestors() for template in ancestor.templates]
+                all_templates = [template for template in section.templates]
+                substantive_templates = [template for template in all_templates if is_czech_subst_template_name(template.name)]
+                for templ in substantive_templates:
+                    for arg in templ.arguments:
+                        if arg.value.strip().startswith('nesklonné') and arg.name == "1":
+                            words = [page.article_title]
+                        else:
+                            word_form = remove_markup(arg.value.strip())
+                            if "<br />" in word_form:
+                                words = [w for w in word_form.split("<br />") if valid(w)]
+                            else:
+                                words = [w for w in word_form.split("/") if valid(w)]
+                        for word in words:
+                            pass
+                            # print(word)
+                        # e.g. manželové / manželé Tvar manželé je pouze pro význam (2); jinak jsou možné koncovky podle vzorů pán i muž bez významového rozlišení.
+
+                # Verbs
+                verb_templates = [template for template in all_templates if is_czech_verb_template_name(template.name)]
+                for templ in verb_templates:
+                    for arg in templ.arguments:
+                        word_form = remove_markup(arg.value.strip())
+                        if "<br />" in word_form:
+                            words = [w for w in word_form.split("<br />") if valid(w)]
+                        else:
+                            words = [w for w in word_form.split("/") if valid(w)]
+                        for word in words:
+                            pass
+                            # print(word)
+
+                        # Adjectives
+                adj_templates = [template for template in all_templates if is_czech_adj_template_name(template.name)]
+                for templ in verb_templates:
+                    for arg in templ.arguments:
+                        word_form = remove_markup(arg.value.strip())
+                        if "<br />" in word_form:
+                            words = [w for w in word_form.split("<br />") if valid(w)]
+                        else:
+                            words = [w for w in word_form.split("/") if valid(w)]
+                        for word in words:
+                            pass
+                            # print(word)
 
 
     @staticmethod
