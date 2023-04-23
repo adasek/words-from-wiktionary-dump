@@ -3,7 +3,6 @@ from __future__ import print_function
 from lxml import etree
 import re
 import bz2
-import time
 from wikitextparser import remove_markup, parse
 
 from . import WikiPage
@@ -12,7 +11,7 @@ class WikiDumpAnalyzer:
 
     def __init__(self, **kwargs):
         self.language = 'cs'
-        self.dump_filename = 'dumps/cswiktionary-20230401-pages-meta-current.xml.bz2'
+        self.dump_filename = 'dumps/cswiktionary-20230420-pages-meta-current.xml.bz2'
 
     def analyze(self):
         template_types = {
@@ -24,75 +23,86 @@ class WikiDumpAnalyzer:
             "číslovka (cs)": 4,
             "sloveso (cs)": 5,
         }
+        section_title_types = {
+            "čeština>příslovce": 6,
+            "čeština>předložka": 7,
+            "čeština>spojka": 8,
+            "čeština>částice": 9,
+            "čeština>citoslovce": 10
+        }
 
 
         def valid(word):
              return " " not in word and "/" not in word and "-" not in word
 
+        # Build section tree
+        def templates_with_deepest_section(parsed_wikitext):
+            section_to_children = {}
+            all_sections = parsed_wikitext.get_sections(True)
+            root_section = all_sections[0]
+            max_children = 0
+            for section in all_sections:
+                section_to_children[section] = []
+            for section1 in all_sections:
+                # print(str(section1.title))
+                for section2 in all_sections:
+                    if section1 in section2 and section2 in section1:
+                        # identical
+                        pass
+                    elif section1 in section2:
+                        # print(str(section2.title) + "->" + str(section1.title))
+                        # <- relation
+                        section_to_children[section2].append(section1)
+                        if len(section_to_children[section2]) > max_children:
+                            max_children = len(section_to_children[section2])
+                            root_section = section2
+
+            # Traverse the section tree
+            section_to_level = {}
+            def set_level(node, level=0):
+                if node not in section_to_level or section_to_level[node] < level:
+                    section_to_level[node] = level
+                # print("".join(["."] * level) + str(node.title))
+                for child in section_to_children[node]:
+                    set_level(child, level + 1)
+            set_level(root_section, 0)
+
+            def echo(node, level=0):
+                print("".join(["."] * level) + str(node.title) + " " + str(section_to_level[node]))
+                for child in section_to_children[node]:
+                    echo(child, level + 1)
+
+            def prune(node, level=0):
+                section_to_children[node] = [ch for ch in section_to_children[node] if section_to_level[ch] == level + 1]
+                for child in section_to_children[node]:
+                    prune(child, level + 1)
+            prune(root_section, 0)
+
+            # print("###")
+            # echo(root_section, 0)
+
+            nested_template_section_tuples = []
+            for template in root_section.templates:
+                deepest_level = 0
+                deepest_section = root_section
+                for section in all_sections:
+                    # print(str(template) in [str(t) for t in section.templates])
+                    template_in_section = str(template) in [str(t) for t in section.templates]
+                    if section in section_to_level and deepest_level <= section_to_level[section] and template_in_section:
+                        deepest_level = section_to_level[section]
+                        deepest_section = section
+                nested_template_section_tuples += [[template, deepest_section]]
+                #print(template)
+                #print(deepest_section.title)
+            return nested_template_section_tuples
+
+        def template_hash(template):
+            return hash(template.string)
 
         for i, page in enumerate(self.extract_pages()):
             parsed = parse(page.wikitext)
-
-            # Build section tree
-            def templates_with_deepest_section(parsed_wikitext):
-                section_to_children = {}
-                all_sections = parsed_wikitext.get_sections(True)
-                root_section = all_sections[0]
-                max_children = 0
-                for section in all_sections:
-                    section_to_children[section] = []
-                for section1 in all_sections:
-                    # print(str(section1.title))
-                    for section2 in all_sections:
-                        if section1 in section2 and section2 in section1:
-                            # identical
-                            pass
-                        elif section1 in section2:
-                            # print(str(section2.title) + "->" + str(section1.title))
-                            # <- relation
-                            section_to_children[section2].append(section1)
-                            if len(section_to_children[section2]) > max_children:
-                                max_children = len(section_to_children[section2])
-                                root_section = section2
-
-                # Traverse the section tree
-                section_to_level = {}
-                def set_level(node, level=0):
-                    if node not in section_to_level or section_to_level[node] < level:
-                        section_to_level[node] = level
-                    # print("".join(["."] * level) + str(node.title))
-                    for child in section_to_children[node]:
-                        set_level(child, level + 1)
-                set_level(root_section, 0)
-
-                def echo(node, level=0):
-                    print("".join(["."] * level) + str(node.title) + " " + str(section_to_level[node]))
-                    for child in section_to_children[node]:
-                        echo(child, level + 1)
-
-                def prune(node, level=0):
-                    section_to_children[node] = [ch for ch in section_to_children[node] if section_to_level[ch] == level + 1]
-                    for child in section_to_children[node]:
-                        prune(child, level + 1)
-                prune(root_section, 0)
-
-                # print("###")
-                # echo(root_section, 0)
-
-                nested_template_section_tuples = []
-                for template in root_section.templates:
-                    deepest_level = 0
-                    deepest_section = root_section
-                    for section in all_sections:
-                        # print(str(template) in [str(t) for t in section.templates])
-                        template_in_section = str(template) in [str(t) for t in section.templates]
-                        if section in section_to_level and deepest_level <= section_to_level[section] and template_in_section:
-                            deepest_level = section_to_level[section]
-                            deepest_section = section
-                    nested_template_section_tuples += [[template, deepest_section]]
-                    #print(template)
-                    #print(deepest_section.title)
-                return nested_template_section_tuples
+            templates_deepest_section = templates_with_deepest_section(parsed)
+            template_to_deepest_section = {template_hash(t[0]): t[1] for t in templates_deepest_section}
 
             #for x, y in templates_with_deepest_section(parsed):
                 #if y.title is not None:
@@ -107,6 +117,10 @@ class WikiDumpAnalyzer:
             # templates_with_deepest_section(parsed)
             # Section-Template
             # relationship is important to parse the proper Meaning of the word
+
+            # for title, word_type in section_title_types.items():
+            #    templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
+
 
             for section in parsed.sections:
                 # Flatten = https://stackoverflow.com/a/952952
@@ -129,6 +143,9 @@ class WikiDumpAnalyzer:
                                 words = [w for w in word_form.split("/") if valid(w)]
                             for word in words:
                                 print(word)
+                                deepest_section = template_to_deepest_section[template_hash(templ)]
+                                print(deepest_section.title)
+
 
 
 
