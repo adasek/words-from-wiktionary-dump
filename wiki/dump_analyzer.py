@@ -148,7 +148,6 @@ class WikiDumpAnalyzer:
 
 
 
-
     @staticmethod
     def _get_namespace(tag):
         namespace = re.match("^{(.*?)}", tag).group(1)

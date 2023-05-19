@@ -2,7 +2,7 @@
 Experimental parser to load words from czech wiktionary
 
 #### Running
-Obtain latest `cs` dump from https://meta.wikimedia.org/wiki/Data_dumps / https://dumps.wikimedia.org/
+Obtain latest `cs` dump from https://meta.wikimedia.org/wiki/Data_dumps / https://dumps.wikimedia.org/backup-index.html
 ```
 záda, plavky, nůžky
 
