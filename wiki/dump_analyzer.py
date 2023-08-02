@@ -95,19 +95,24 @@ class WikiDumpAnalyzer:
                     template_name_normalized = template.name.strip().lower()
                     return template_name_normalized == template_name.strip().lower()
 
+            words = []
             for template_name, word_type in template_types.items():
                 templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
                 for templ in templates_of_given_type:
                     for arg in templ.arguments:
                         if arg.value.strip().startswith('nesklonné') and arg.name == "1":
-                            words = [page.article_title]
+                            words += [page.article_title]
                         else:
                             word_form = remove_markup(arg.value.strip())
-                            words = [w for w in word_form.split("/") if valid(w)]
-                        for word in words:
-                            print(word)
-                            # templ
-                            print(",".join([node["title"] for node in get_tree_path(section_tree, templ)]))
+                            words += [w for w in word_form.split("/") if valid(w)]
+                            # print(",".join([node["title"] for node in get_tree_path(section_tree, templ)]))
+
+            for section in parsed.sections:
+                tree_path = ">".join([node["title"] for node in get_tree_path(section_tree, section)])
+                if tree_path in section_title_types.keys():
+                    words += [page.article_title]
+            for word in words:
+                print(word)
 
 
 
