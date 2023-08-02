@@ -11,7 +11,7 @@ class WikiDumpAnalyzer:
 
     def __init__(self, **kwargs):
         self.language = 'cs'
-        self.dump_filename = 'dumps/cswiktionary-20230420-pages-meta-current.xml.bz2'
+        self.dump_filename = 'dumps/cswiktionary-20230801-pages-meta-current.xml.bz2'
 
     def analyze(self):
         template_types = {
@@ -36,13 +36,13 @@ class WikiDumpAnalyzer:
              return " " not in word and "/" not in word and "-" not in word
 
         # Build section tree
-        def templates_with_deepest_section(parsed_wikitext):
+        def build_section_tree(parsed_wikitext):
             section_to_children = {}
-            all_sections = parsed_wikitext.get_sections(True)
+            all_sections = parsed_wikitext.get_sections(include_subsections=True)
             root_section = all_sections[0]
             max_children = 0
             for section in all_sections:
-                section_to_children[section] = []
+                section_to_children[hash(section.string)] = []
             for section1 in all_sections:
                 # print(str(section1.title))
                 for section2 in all_sections:
@@ -50,67 +50,35 @@ class WikiDumpAnalyzer:
                         # identical
                         pass
                     elif section1 in section2:
-                        # print(str(section2.title) + "->" + str(section1.title))
-                        # <- relation
-                        section_to_children[section2].append(section1)
-                        if len(section_to_children[section2]) > max_children:
-                            max_children = len(section_to_children[section2])
+                        section_to_children[hash(section2.string)].append(section1)
+                        if len(section_to_children[hash(section2.string)]) > max_children:
+                            max_children = len(section_to_children[hash(section2.string)])
                             root_section = section2
+            def create_node(section, section_to_children):
+                return {
+                    'string': section.string,
+                    'title': (section.title or "").strip().lower(),
+                    'children': [create_node(child, section_to_children) for child in section_to_children[hash(section.string)]]
+                }
+            return create_node(root_section, section_to_children)
 
-            # Traverse the section tree
-            section_to_level = {}
-            def set_level(node, level=0):
-                if node not in section_to_level or section_to_level[node] < level:
-                    section_to_level[node] = level
-                # print("".join(["."] * level) + str(node.title))
-                for child in section_to_children[node]:
-                    set_level(child, level + 1)
-            set_level(root_section, 0)
 
-            def echo(node, level=0):
-                print("".join(["."] * level) + str(node.title) + " " + str(section_to_level[node]))
-                for child in section_to_children[node]:
-                    echo(child, level + 1)
+        def get_tree_path(section_tree_node, template):
+            if template.string in section_tree_node["string"]:
+                for child in section_tree_node["children"]:
+                    child_path = get_tree_path(child, template)
+                    if len(child_path) > 0:
+                        return [section_tree_node] + child_path
+                return [section_tree_node]
+            else:
+                return []
 
-            def prune(node, level=0):
-                section_to_children[node] = [ch for ch in section_to_children[node] if section_to_level[ch] == level + 1]
-                for child in section_to_children[node]:
-                    prune(child, level + 1)
-            prune(root_section, 0)
-
-            # print("###")
-            # echo(root_section, 0)
-
-            nested_template_section_tuples = []
-            for template in root_section.templates:
-                deepest_level = 0
-                deepest_section = root_section
-                for section in all_sections:
-                    # print(str(template) in [str(t) for t in section.templates])
-                    template_in_section = str(template) in [str(t) for t in section.templates]
-                    if section in section_to_level and deepest_level <= section_to_level[section] and template_in_section:
-                        deepest_level = section_to_level[section]
-                        deepest_section = section
-                nested_template_section_tuples += [[template, deepest_section]]
-                #print(template)
-                #print(deepest_section.title)
-            return nested_template_section_tuples
-
-        def template_hash(template):
-            return hash(template.string)
 
         for i, page in enumerate(self.extract_pages()):
             parsed = parse(page.wikitext)
-            templates_deepest_section = templates_with_deepest_section(parsed)
-            template_to_deepest_section = {template_hash(t[0]): t[1] for t in templates_deepest_section}
-
-            #for x, y in templates_with_deepest_section(parsed):
-                #if y.title is not None:
-                #    # print(y.title + " " + str(x.name.strip()) )
-                #   if x.name.strip().lower() == 'substantivum (cs)':
-                #      # if not y.title.strip().lower().startswith('skloňování'):
-                #           # Fixme!: foyer, achtovanec, atrament, dynchéř, lázeňský
-                #      #    print(page.article_title)
+            section_tree = build_section_tree(parsed)
+            # print(section_tree)
+            # print("---")
 
             # print([y.title for x, y in templates_with_deepest_section(parsed) if y.title is not None])
             #print()
@@ -121,30 +89,25 @@ class WikiDumpAnalyzer:
             # for title, word_type in section_title_types.items():
             #    templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
 
+            all_templates = [template for template in parsed.templates]
 
-            for section in parsed.sections:
-                # Flatten = https://stackoverflow.com/a/952952
-                # Does not work
-                # nested_section_templates = [template for ancestor in section.ancestors() for template in ancestor.templates]
-                all_templates = [template for template in section.templates]
+            def is_template(template, template_name):
+                    template_name_normalized = template.name.strip().lower()
+                    return template_name_normalized == template_name.strip().lower()
 
-                def is_template(template, template_name):
-                        template_name_normalized = template.name.strip().lower()
-                        return template_name_normalized == template_name.strip().lower()
-
-                for template_name, word_type in template_types.items():
-                    templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
-                    for templ in templates_of_given_type:
-                        for arg in templ.arguments:
-                            if arg.value.strip().startswith('nesklonné') and arg.name == "1":
-                                words = [page.article_title]
-                            else:
-                                word_form = remove_markup(arg.value.strip())
-                                words = [w for w in word_form.split("/") if valid(w)]
-                            for word in words:
-                                print(word)
-                                deepest_section = template_to_deepest_section[template_hash(templ)]
-                                print(deepest_section.title)
+            for template_name, word_type in template_types.items():
+                templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
+                for templ in templates_of_given_type:
+                    for arg in templ.arguments:
+                        if arg.value.strip().startswith('nesklonné') and arg.name == "1":
+                            words = [page.article_title]
+                        else:
+                            word_form = remove_markup(arg.value.strip())
+                            words = [w for w in word_form.split("/") if valid(w)]
+                        for word in words:
+                            print(word)
+                            # templ
+                            print(",".join([node["title"] for node in get_tree_path(section_tree, templ)]))
 
 
 
