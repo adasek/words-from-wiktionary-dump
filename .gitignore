@@ -1,1 +1,11 @@
 __pycache__
+dumps/*
+!dumps/.keep
+
+
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+

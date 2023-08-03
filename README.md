@@ -1,6 +1,7 @@
 ### Words from Wiktionary Dump
 Experimental parser to load words from czech wiktionary
 
+
 #### Running
 Obtain latest `cs` dump from https://meta.wikimedia.org/wiki/Data_dumps / https://dumps.wikimedia.org/backup-index.html
 ```
@@ -53,7 +54,6 @@ parsed.sections[1].templates[0].name
 
 def normalize_text(text):
 	return text.lower().strip()
-
 
 
 parsed.sections[1].templates[0].arguments[0]
@@ -123,3 +123,15 @@ Nesklonná pouze plurál
   | nesklonné plurál
 }}
 ```
+
+#### Experiment 2023-08
+```bash
+poetry run python3 run.py > ./words && sort ./words|uniq > ./words_uniq 
+
+```
+
+
+#### Todo
+ * wikitextparser -> tree
+ * podstatné jméno > význam
+ * podstatné jméno > skloňování

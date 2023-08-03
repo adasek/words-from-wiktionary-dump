@@ -9,9 +9,9 @@ from . import WikiPage
 
 class WikiDumpAnalyzer:
 
-    def __init__(self, **kwargs):
+    def __init__(self, dump_filename, **kwargs):
         self.language = 'cs'
-        self.dump_filename = 'dumps/cswiktionary-20230801-pages-meta-current.xml.bz2'
+        self.dump_filename = dump_filename
 
     def analyze(self):
         template_types = {
@@ -24,6 +24,9 @@ class WikiDumpAnalyzer:
             "sloveso (cs)": 5,
         }
         section_title_types = {
+            "čeština>přídavné jméno": 2,
+            "čeština>číslovka": 4,
+            "čeština>sloveso": 5,
             "čeština>příslovce": 6,
             "čeština>předložka": 7,
             "čeština>spojka": 8,
@@ -38,27 +41,34 @@ class WikiDumpAnalyzer:
         # Build section tree
         def build_section_tree(parsed_wikitext):
             section_to_children = {}
-            all_sections = parsed_wikitext.get_sections(include_subsections=True)
-            root_section = all_sections[0]
-            max_children = 0
-            for section in all_sections:
+            all_sections = parsed_wikitext.sections # get_sections(include_subsections=True)
+            root_section = parsed_wikitext
+            for section in all_sections + [root_section]:
                 section_to_children[hash(section.string)] = []
-            for section1 in all_sections:
+            for section1 in all_sections + [root_section]:
                 # print(str(section1.title))
-                for section2 in all_sections:
-                    if section1 in section2 and section2 in section1:
-                        # identical
-                        pass
-                    elif section1 in section2:
+                for section2 in all_sections + [root_section]:
+                    if section1 in section2 and (section2 not in section1):
                         section_to_children[hash(section2.string)].append(section1)
-                        if len(section_to_children[hash(section2.string)]) > max_children:
-                            max_children = len(section_to_children[hash(section2.string)])
-                            root_section = section2
+                if section1.string == root_section.string and section1 != parsed_wikitext:
+                    root_section = section1
             def create_node(section, section_to_children):
+                section_title = ""
+                if hasattr(section, "title") and section.title is not None:
+                    section_title = section.title.strip().lower()
+                subnodes = set()
+                recursive_section_to_children = {}
+                for key, children in section_to_children.items():
+                    if key != hash(section.string):
+                        subnodes.update([hash(ch.string) for ch in children])
+                        recursive_section_to_children[key] = children
+                section_children = []
+                if hash(section.string) in section_to_children:
+                    section_children = section_to_children[hash(section.string)]
                 return {
                     'string': section.string,
-                    'title': (section.title or "").strip().lower(),
-                    'children': [create_node(child, section_to_children) for child in section_to_children[hash(section.string)]]
+                    'title': section_title,
+                    'children': [create_node(child, recursive_section_to_children) for child in section_children if hash(child.string) not in subnodes]
                 }
             return create_node(root_section, section_to_children)
 
@@ -73,10 +83,10 @@ class WikiDumpAnalyzer:
             else:
                 return []
 
-
         for i, page in enumerate(self.extract_pages()):
             parsed = parse(page.wikitext)
             section_tree = build_section_tree(parsed)
+
             # print(section_tree)
             # print("---")
 
@@ -104,13 +114,16 @@ class WikiDumpAnalyzer:
                             words += [page.article_title]
                         else:
                             word_form = remove_markup(arg.value.strip())
-                            words += [w for w in word_form.split("/") if valid(w)]
+                            word_parts = [w.strip() for w in word_form.split("/ ")]
+                            words += [w for w in word_parts if valid(w.strip())]
                             # print(",".join([node["title"] for node in get_tree_path(section_tree, templ)]))
 
             for section in parsed.sections:
-                tree_path = ">".join([node["title"] for node in get_tree_path(section_tree, section)])
+                tree_path = ">".join([node["title"] for node in get_tree_path(section_tree, section) if node["title"] != ""])
+
                 if tree_path in section_title_types.keys():
-                    words += [page.article_title]
+                    word_parts = [w.strip() for w in page.article_title.split(" ")]
+                    words += [w for w in word_parts if valid(w)]
             for word in words:
                 print(word)
 
