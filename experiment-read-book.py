@@ -15,7 +15,7 @@ with open('words_uniq') as wordlist_file:
 
 print(len(wordlist))
 
-book_path = Path('somebook.txt')
+book_path = Path('/home/adam/ebooks/19584254/Knizky elektronicke/Knihy v TXT podle autoru/R/Rowling, JK/Rowlingova J K - HarryPotter 1 - Kamenmudrcu.txt')
 
 book_wordlist = set()
 with open(book_path) as book_file:
