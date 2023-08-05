@@ -9,7 +9,7 @@ from charset_normalizer import from_bytes
 nltk.download('punkt')
 
 
-book_paths = Path('/home/adam/ebooks/19584254/Knizky elektronicke/Knihy v TXT podle autoru/').rglob('*.txt')
+book_paths = Path('ebooks/').rglob('*.txt')
 
 
 def is_alfanumeric(word: str) -> bool:
@@ -34,14 +34,16 @@ for i, book_path in enumerate(book_paths):
                 book_file.read(),
                 cp_isolation=['cp1250', 'utf-8', 'iso-8859-2'],  # Finite list of encoding to use when searching for a match
             )
+            if matches.best() is None:
+                print("!", end="", flush=True)
+                continue
             text = matches.best().output('utf-8').decode('utf-8')
             # Avoid Slovak & nondiacritics texts.
             # Unfortunately the charset_normalizer sometimes falsely identifes the text as Slovak
             # so cannot use matches.best().language to tell.
 
             if 'č' not in text or 'š' not in text or 'ě' not in text:
-                print()
-                print(text[2000:3000])
+                print("S", end="", flush=True)
                 continue
 
             sentences = sent_tokenize(text, language='czech')
