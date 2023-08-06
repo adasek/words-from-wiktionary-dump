@@ -25,6 +25,7 @@ class WikiDumpAnalyzer:
         }
         section_title_types = {
             "čeština>přídavné jméno": 2,
+            "čeština>zájmeno": 3,
             "čeština>číslovka": 4,
             "čeština>sloveso": 5,
             "čeština>příslovce": 6,
@@ -37,6 +38,10 @@ class WikiDumpAnalyzer:
 
         def valid(word):
              return " " not in word and "/" not in word and "-" not in word
+
+        def remove_brackets(text: str) -> str:
+            return re.sub(r'\(.*?\)', '', text).strip()
+
 
         # Build section tree
         def build_section_tree(parsed_wikitext):
@@ -101,6 +106,8 @@ class WikiDumpAnalyzer:
 
             all_templates = [template for template in parsed.templates]
 
+            # if page.article_title == "od":
+            #     print(all_templates)
             def is_template(template, template_name):
                     template_name_normalized = template.name.strip().lower()
                     return template_name_normalized == template_name.strip().lower()
@@ -120,11 +127,12 @@ class WikiDumpAnalyzer:
             for section in parsed.sections:
                 tree_path = ">".join([node["title"] for node in get_tree_path(section_tree, section) if node["title"] != ""])
 
-                if tree_path in section_title_types.keys():
+                if remove_brackets(tree_path) in section_title_types.keys():
                     word_parts = [w.strip() for w in page.article_title.split(" ")]
                     words += [w for w in word_parts if valid(w)]
             for word in words:
                 print(word)
+                pass
 
 
 
