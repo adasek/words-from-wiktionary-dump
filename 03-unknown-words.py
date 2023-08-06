@@ -6,7 +6,7 @@ def is_alfanumeric(word: str) -> bool:
     return not any(not c.isalnum() for c in word.strip())
 
 
-# Read wordlist created by 01-parse-wiktionary.py
+# Read wordlist created by 01-create-wordlist-from-wiktionary
 wiktionary_wordlist = set()
 with open('words_uniq') as wordlist_file:
     for word in wordlist_file.readlines():
@@ -26,9 +26,8 @@ print(words_counter.total())
 
 unknown_words_counter = {key: words_counter[key] for key in words_counter.keys() if key not in wiktionary_wordlist}
 
-filtered_words_counter = {word.lower(): count for word, count in unknown_words_counter.items() if is_alfanumeric(word) and count > 10}
+filtered_words_counter = {word.lower(): count for word, count in unknown_words_counter.items() if is_alfanumeric(word) and len(word) > 1 and count > 10}
 unknown_words = sorted(filtered_words_counter.items(), key=lambda x: x[1])
-print('práce' in unknown_words)
 
 print(unknown_words)
 print("----")

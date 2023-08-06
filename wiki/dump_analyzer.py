@@ -114,9 +114,8 @@ class WikiDumpAnalyzer:
                             words += [page.article_title]
                         else:
                             word_form = remove_markup(arg.value.strip())
-                            word_parts = [w.strip() for w in word_form.split("/ ")]
+                            word_parts = [w.strip() for w in re.split("[/ ]", word_form)]
                             words += [w for w in word_parts if valid(w.strip())]
-                            # print(",".join([node["title"] for node in get_tree_path(section_tree, templ)]))
 
             for section in parsed.sections:
                 tree_path = ">".join([node["title"] for node in get_tree_path(section_tree, section) if node["title"] != ""])

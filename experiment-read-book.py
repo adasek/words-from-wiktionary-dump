@@ -6,7 +6,7 @@ from nltk.tokenize import wordpunct_tokenize
 # words found in an e-book
 
 # Load the word list
-# created by the run.py
+# created by the 01_create-wordlist-from-wiktionary.py
 
 wordlist = set()
 with open('words_uniq') as wordlist_file:
