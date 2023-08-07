@@ -4,6 +4,7 @@ from lxml import etree
 import re
 import bz2
 from wikitextparser import remove_markup, parse
+from icu import LocaleData, Locale, Collator
 
 from . import WikiPage
 
@@ -22,6 +23,7 @@ class WikiDumpAnalyzer:
             "zájmeno (cs)": 3,
             "číslovka (cs)": 4,
             "sloveso (cs)": 5,
+            "stupňování (cs)": 6
         }
         section_title_types = {
             "čeština>přídavné jméno": 2,
@@ -42,8 +44,13 @@ class WikiDumpAnalyzer:
         def remove_brackets(text: str) -> str:
             return re.sub(r'\(.*?\)', '', text).strip()
 
+        def remove_html_tag_content(text, html_tag_list):
+            for tag in html_tag_list:
+                # content_regexp = re.compile(f'<{tag}.*?\>.*</{tag}.*?>')
+                content_regexp = re.compile(f'<{tag}.*?\>.*</{tag}.*?>')
+                text = re.sub(content_regexp, '', text)
+            return text
 
-        # Build section tree
         def build_section_tree(parsed_wikitext):
             section_to_children = {}
             all_sections = parsed_wikitext.sections # get_sections(include_subsections=True)
@@ -88,6 +95,9 @@ class WikiDumpAnalyzer:
             else:
                 return []
 
+        locale_data = LocaleData('cs')
+        czech_letters = list("".join(locale_data.getExemplarSet()))
+
         for i, page in enumerate(self.extract_pages()):
             parsed = parse(page.wikitext)
             section_tree = build_section_tree(parsed)
@@ -112,6 +122,7 @@ class WikiDumpAnalyzer:
                     template_name_normalized = template.name.strip().lower()
                     return template_name_normalized == template_name.strip().lower()
 
+            lemma = page.article_title.strip()
             words = []
             for template_name, word_type in template_types.items():
                 templates_of_given_type = [template for template in all_templates if is_template(template, template_name)]
@@ -120,8 +131,8 @@ class WikiDumpAnalyzer:
                         if arg.value.strip().startswith('nesklonné') and arg.name == "1":
                             words += [page.article_title]
                         else:
-                            word_form = remove_markup(arg.value.strip())
-                            word_parts = [w.strip() for w in re.split("[/ ]", word_form)]
+                            word_form = remove_markup(remove_html_tag_content(arg.value.strip(), ['ref', 'br', 'sup']))
+                            word_parts = [re.sub(r'[*]', '', w.strip()) for w in re.split("[/ ]", word_form)]
                             words += [w for w in word_parts if valid(w.strip())]
 
             for section in parsed.sections:
@@ -130,9 +141,13 @@ class WikiDumpAnalyzer:
                 if remove_brackets(tree_path) in section_title_types.keys():
                     word_parts = [w.strip() for w in page.article_title.split(" ")]
                     words += [w for w in word_parts if valid(w)]
-            for word in words:
-                print(word)
-                pass
+            for word in set(words):
+                unknown_chars = [char for char in word.lower() if char not in czech_letters]
+                if not any(unknown_chars):
+                    yield [lemma, word]
+                else:
+                    # todo: perhaps err output?
+                    pass
 
 
 

@@ -6,6 +6,6 @@ Experimental parser to load words from czech wiktionary
 Obtain latest `cs` dump from https://meta.wikimedia.org/wiki/Data_dumps / https://dumps.wikimedia.org/backup-index.html
 
 ```bash
-poetry run python3 01_create-wordlist-from-wiktionary.py > ./words
-sort ./words|uniq > ./words_uniq 
+poetry run python3 01_create-wordlist-from-wiktionary.py
+# creates words, words_uniq, words_to_lemmas
 ```
