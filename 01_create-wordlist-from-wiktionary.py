@@ -11,4 +11,5 @@ with open('words', 'w') as words_file, open('words_to_lemmas', 'w') as words_to_
             print(f"{word},{lemma}", file=words_to_lemmas_file)
 
 with open('words_uniq', 'w') as words_uniq_file:
-    print(word, file=words_uniq_file)
+    for word in words:
+        print(word, file=words_uniq_file)
