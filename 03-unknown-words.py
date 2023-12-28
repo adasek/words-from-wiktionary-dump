@@ -45,6 +45,12 @@ unknown_words = set(map(lambda x: x[0], unknown_words_with_count))
 for word_with_count in unknown_words_with_count:
     print(word_with_count[0], word_with_count[1])
 print("----")
+# absolute number of unknown words
+unknown_words_count = sum(filtered_words_counter.values())
+total_words_count = sum(coprus_words_counter.values())
+total_unknown_percentage = 100 * unknown_words_count / total_words_count
+
 unknown_percentage = 100 * len(unknown_words) / len(coprus_words_counter.keys())
-print(f"Unknown percentage: {round(unknown_percentage, 2)}%")
+print(f"Unknown percentage: {round(unknown_percentage, 2)}% (per-word)")
+print(f"Total unknown percentage: {round(total_unknown_percentage, 2)}% ({unknown_words_count} out of {total_words_count})")
 print(f"Unknown words: {len(unknown_words)}")
