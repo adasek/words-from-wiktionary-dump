@@ -15,6 +15,7 @@ nltk = "^3.8.1"
 charset-normalizer = "^3.2.0"
 pyicu = "^2.11"
 pandas = "^2.0.3"
+more-itertools = "^10.1.0"
 
 [build-system]
 requires = ["poetry-core"]

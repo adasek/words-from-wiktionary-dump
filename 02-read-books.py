@@ -5,13 +5,17 @@ from collections import Counter
 import pickle
 import random
 from tqdm import tqdm
+from datetime import datetime
 import functools
 import gc
 from more_itertools import chunked
 from multiprocessing import Pool, Value
 from charset_normalizer import from_bytes
+import math
 
-nltk.download('punkt')
+# nltk.download('punkt')
+
+SENTENCE_COUNTER = False
 
 def normalize_word(w):
     for char in [*" \u200c –'…"]:
@@ -38,6 +42,12 @@ sentence_counter = Counter()
 def parse_book(file_name: Path):
     return BookParseResult(file_name)
 
+def counter_reduce(list):
+    if len(list) == 1:
+        return list[0]
+    elif len(list) == 0:
+        return Counter()
+    return counter_reduce(list[0:math.floor(len(list)/2)]) + counter_reduce(list[math.floor(len(list)/2):])
 
 class BookParseResult:
 
@@ -76,7 +86,8 @@ class BookParseResult:
                 return
 
         sentences = sent_tokenize(text, language='czech')
-        self.sentence_counter.update(sentences)
+        if SENTENCE_COUNTER:
+            self.sentence_counter.update(sentences)
         for sentence in sentences:
             for word in word_tokenize(sentence, language='czech'):
                 self.word_counter.update([word])
@@ -92,28 +103,30 @@ sentence_counter = Counter()
 
 # batches to limit the RAM used
 for i, chunk in enumerate(chunked(book_paths, 1000)):
-    print(f"Chunk {i}:{len(chunk)}")
+    print(f"Chunk {i}:{len(chunk)} {datetime.now()}")
     with Pool(processes=8) as pool:
         book_parse_results = list(tqdm(pool.imap_unordered(parse_book, chunk), total=len(chunk)))
 
-    print(f"Adding")
+    print(f"Adding  {datetime.now()}")
     valid_book_parse_results = [b for b in book_parse_results if b.valid]
     print(f"{len(valid_book_parse_results)} valid out of {len(book_parse_results)}")
 
-    word_counter += functools.reduce(lambda a, b: a+b, map(lambda x: x.word_counter, valid_book_parse_results))
-    word_counter_normalized += functools.reduce(lambda a, b: a+b, map(lambda x: x.word_counter_normalized, valid_book_parse_results))
-    # sentence_counter += functools.reduce(lambda a, b: a+b, map(lambda x: x.sentence_counter, valid_book_parse_results))
+    word_counter += counter_reduce(list(map(lambda x: x.word_counter, valid_book_parse_results)))
+    word_counter_normalized += counter_reduce(list(map(lambda x: x.word_counter_normalized, valid_book_parse_results)))
+    if SENTENCE_COUNTER:
+        sentence_counter += counter_reduce(list(map(lambda x: x.sentence_counter, valid_book_parse_results)))
 
-    print(f"Chunk Done")
+    print(f"Chunk Done {datetime.now()}")
     valid_book_parse_results = []
     book_parse_results = []
     gc.collect()
+    print(f"Garbage Collected {datetime.now()}")
 
 
 save_result(word_counter, f"corpus/word_counter.pickle")
 save_result(word_counter_normalized, f"corpus/word_counter_normalized.pickle")
-
-# save_result(sentence_counter, f"corpus/sentence_counter.pickle")
+if SENTENCE_COUNTER:
+    save_result(sentence_counter, f"corpus/sentence_counter.pickle")
 
 print(sentence_counter.most_common(100))
 print(word_counter.most_common(1000))
