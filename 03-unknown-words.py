@@ -1,7 +1,5 @@
-from pathlib import Path
-import pickle
 from collections import Counter
-
+from helper import load_counter_pickle
 
 def is_alfanumeric(word: str) -> bool:
     return not any(not c.isalnum() for c in word.strip())
@@ -22,14 +20,6 @@ with open('words_uniq') as wordlist_file:
         wiktionary_wordlist.add(norm(word))
 
 print(len(wiktionary_wordlist))
-
-
-# Load the corpus (words) created by 02-read-books.py
-def load_counter_pickle(file_path: Path):
-    with open(file_path, 'rb') as infile:
-        corpus: Counter = pickle.load(infile)
-    return corpus
-
 
 coprus_words_counter = load_counter_pickle("corpus/word_counter.pickle")
 
