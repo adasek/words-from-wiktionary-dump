@@ -3,6 +3,8 @@ from collections import Counter
 from charset_normalizer import from_bytes
 from nltk.tokenize import word_tokenize, sent_tokenize
 from helper import normalize_word
+import tempfile
+import subprocess
 
 import nltk
 class BookParseResult:
@@ -58,4 +60,31 @@ class BookParseResult:
 
     @classmethod
     def parse_book(cls, file_name: Path, count_sentences=False):
+        # convert the filename
+        suffix = file_name.suffix.lower()
+        if suffix in ['.pdb', '.epub']:
+            txt_version = tempfile.NamedTemporaryFile(mode='r', suffix='.txt', delete=False)
+
+            # Get the name of the temporary file
+            txt_file_name = txt_version.name
+
+            # convert
+            try:
+                result = subprocess.run(['ebook-convert', file_name, txt_file_name, '--input-encoding', 'cp1250'],
+                                    shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+            except subprocess.TimeoutExpired:
+                print(f"Conversion timeout {file_name}")
+                return None
+            if result.returncode != 0:
+                print(f"Conversion failed {file_name}")
+                print(result.stdout)
+                return None
+            else:
+                return BookParseResult(txt_file_name, count_sentences=count_sentences)
+
+        elif suffix == '.txt':
+            pass
+        else:
+            raise Exception("Unknown file suffix")
+
         return BookParseResult(file_name, count_sentences=count_sentences)
