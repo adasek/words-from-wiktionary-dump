@@ -35,7 +35,7 @@ multiplied_values = hist * bin_edges[:-1]
 
 ax2.plot(bin_edges[:-1], multiplied_values, color='red', marker='o', linestyle='-', linewidth=2, markersize=4, label='Words')
 ax2.set_ylabel('Total Words Count', color='red')
-ax2.tick_params(axis='y', labelcolor='red')
+ax2.tick_params(axis='y', labelcolor=   'red')
 ax2.set_yscale('log')
 # ax2.yaxis.set_major_formatter(StrMethodFormatter("{x:.0f}"))
 

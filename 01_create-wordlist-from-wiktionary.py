@@ -4,7 +4,8 @@ import json
 def contains_special_characters(word: str) -> bool:
     return any(not c.isalnum() for c in word)
 
-wiki_dump_analyzer = WikiDumpAnalyzer('dumps/cswiktionary-20230801-pages-meta-current.xml.bz2')
+# https://dumps.wikimedia.org/backup-index.html
+wiki_dump_analyzer = WikiDumpAnalyzer('dumps/cswiktionary-20231220-pages-meta-current.xml.bz2')
 
 all_words = list()
 words_to_lemmas = {}
